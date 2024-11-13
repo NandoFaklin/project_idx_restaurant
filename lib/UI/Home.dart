@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:myapp/UI/detail.dart';
 import 'package:myapp/notifier/notifierRestaurant.dart';
+import 'package:myapp/notifier/notifierTheme.dart'; // Pastikan mengimpor ThemeNotifier
 import 'package:provider/provider.dart';
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
   _HomePageState createState() => _HomePageState();
 }
@@ -22,9 +25,24 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final themeNotifier = Provider.of<ThemeNotifier>(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Daftar Restoran'),
+        title: const Text('Daftar Restoran'),
+        actions: [
+          Row(
+            children: [
+              Icon(themeNotifier.themeMode == ThemeMode.light ? Icons.light_mode : Icons.dark_mode),
+              Switch(
+                value: themeNotifier.themeMode == ThemeMode.dark,
+                onChanged: (value) {
+                  themeNotifier.toggleTheme();
+                },
+              ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -35,7 +53,7 @@ class _HomePageState extends State<HomePage> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Cari nama restoran...',
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
                   borderSide: BorderSide.none,
@@ -44,7 +62,8 @@ class _HomePageState extends State<HomePage> {
                 fillColor: Colors.grey[200],
               ),
               onChanged: (value) {
-                setState(() {}); // Memperbarui UI saat teks berubah
+                // Panggil searchRestaurants dari NotifierRestaurant
+                Provider.of<NotifierRestaurant>(context, listen: false).searchRestaurants(value);
               },
             ),
           ),
@@ -52,20 +71,15 @@ class _HomePageState extends State<HomePage> {
             child: Consumer<NotifierRestaurant>(
               builder: (context, notifier, _) {
                 if (notifier.isLoading) {
-                  return Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator());
                 } else if (notifier.errorMessage.isNotEmpty) {
                   return Center(child: Text(notifier.errorMessage));
                 } else if (notifier.restaurantData != null &&
                     notifier.restaurantData!.restaurants!.isNotEmpty) {
-                  // Filter data sesuai input pencarian
-                  final query = _searchController.text.toLowerCase();
-                  final filteredRestaurants = notifier.restaurantData!.restaurants!
-                      .where((restaurant) =>
-                          restaurant.name!.toLowerCase().contains(query))
-                      .toList();
+                  final filteredRestaurants = notifier.restaurantData!.restaurants!;
 
                   if (filteredRestaurants.isEmpty) {
-                    return Center(child: Text("Restoran tidak ditemukan."));
+                    return const Center(child: Text("Restoran tidak ditemukan."));
                   }
 
                   return ListView.builder(
@@ -73,7 +87,7 @@ class _HomePageState extends State<HomePage> {
                     itemBuilder: (context, index) {
                       final restaurant = filteredRestaurants[index];
                       return Card(
-                        margin: EdgeInsets.all(8.0),
+                        margin: const EdgeInsets.all(8.0),
                         child: ListTile(
                           leading: Hero(
                             tag: 'restaurant-image-${restaurant.id}',
@@ -89,7 +103,7 @@ class _HomePageState extends State<HomePage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(restaurant.city ?? 'Kota Tidak Diketahui'),
-                              SizedBox(height: 5),
+                              const SizedBox(height: 5),
                               Text('Rating: ${restaurant.rating?.toString() ?? '-'}'),
                             ],
                           ),
@@ -97,7 +111,7 @@ class _HomePageState extends State<HomePage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => RestaurantDetail(restaurant: restaurant),
+                                builder: (context) => RestaurantDetail(restaurantId: restaurant.id!,),
                               ),
                             );
                           },
@@ -106,7 +120,7 @@ class _HomePageState extends State<HomePage> {
                     },
                   );
                 } else {
-                  return Center(child: Text('Tidak ada data yang tersedia.'));
+                  return const Center(child: Text('Tidak ada data yang tersedia.'));
                 }
               },
             ),
